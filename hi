@@ -1,0 +1,104 @@
+-- 📌 Aimbot + FULL AUTO-SPAM Shooting (Right-Click Hold)
+-- ✅ Right-click = Aim & spam bullets non-stop
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+local AimEnabled = false
+local SmoothFactor = 0.900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000  -- 0.1 = Slower, 1 = Instant
+
+-- 🎯 Function to get the upper chest position
+local function getChestPosition(character)
+    local upperTorso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso") -- R6 & R15 support
+    if upperTorso then
+        return upperTorso.Position + Vector3.new(0, upperTorso.Size.Y * 0.4, 0)
+    end
+    return nil
+end
+
+-- 🎯 Find closest visible chest
+local function findClosestChest()
+    local closestTarget = nil
+    local shortestDistance = math.huge
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local chest = getChestPosition(character)
+
+            if humanoid and humanoid.Health > 0 and chest then
+                local screenPosition, onScreen = Camera:WorldToScreenPoint(chest)
+
+                -- ✅ Raycast to make sure the target is visible
+                local rayOrigin = Camera.CFrame.Position
+                local rayDirection = (chest - rayOrigin).unit * 500
+                local raycastParams = RaycastParams.new()
+                raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+                local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+                if onScreen and raycastResult and raycastResult.Instance:IsDescendantOf(character) then
+                    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    local distance = (Vector2.new(screenPosition.X, screenPosition.Y) - mousePos).Magnitude
+
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestTarget = chest
+                    end
+                end
+            end
+        end
+    end
+
+    return closestTarget
+end
+
+-- 🎯 Lock onto target + Full Auto-Shoot
+local function aimAndShoot()
+    local targetChest = findClosestChest()
+    if targetChest then
+        local cameraPosition = Camera.CFrame.Position
+        local aimDirection = (targetChest - cameraPosition).unit
+        local targetCFrame = CFrame.new(cameraPosition, cameraPosition + aimDirection)
+
+        -- ✅ Smooth aiming
+        if AimEnabled then
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, SmoothFactor)
+
+            -- ✅ SPAM SHOOT (Hold Right-Click to Spray)
+            task.spawn(function()
+                while AimEnabled do
+                    mouse1press()  -- Simulates holding left-click
+                    wait(0.02)  -- Adjust fire rate (Lower = faster spam)
+                    mouse1release()
+                end
+            end)
+        end
+    end
+end
+
+-- ✅ Right-click = Toggle Aimbot + Auto-Spam Shoot
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then  
+        AimEnabled = true  
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then  
+        AimEnabled = false  
+    end
+end)
+
+-- ✅ Run Aimbot & Auto-Shoot every frame
+RunService.RenderStepped:Connect(function()
+    if AimEnabled then
+        aimAndShoot()
+    end
+end)
